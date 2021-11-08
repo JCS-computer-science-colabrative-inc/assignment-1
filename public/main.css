@@ -1,0 +1,31 @@
+/* index.html css */
+body {
+  padding: 0;
+  margin: 0;
+  background: #f2f6e9;
+}
+.navbar {
+  background: #37393f;
+}
+.nav-link,
+.navbar-brand {
+  color: #fff;
+  cursor: pointer;
+}
+.nav-link {
+  margin-right: 1em !important;
+}
+.nav-link:hover {
+  color: #000;
+}
+.navbar-collapse {
+  justify-content: flex-end;
+}
+
+.footer {
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  text-align: center;
+}
