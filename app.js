@@ -1,161 +1,101 @@
 //All your code goes in this file
 const express = require("express");
-const Datastore = require("nedb");
-
-// this is confusing me too
-//const { res } = require("express");
-//const fetch = require("node-fetch");
+const Datastore = require("nedb")
 
 const app = express();
-
-app.use(express.static("public")); //problem
-
-const db = new Datastore("database.db");
 app.use(express.json());
+app.use(express.static('public'))
+const db = new Datastore("./database.db")
+db.loadDatabase()
 
-db.loadDatabase();
+// get api 
 
-//get request
-app.get("/api", (req, res) => {
-  db.find({})
-    .sort({ contents: -1 })
-    .exec(function (err, data) {
-      if (err) {
-        console.log("error with app.get /api -line 19");
-        res.status(400).send(err);
-        res.end();
-        return;
-      } else {
-        res.json(data);
-        res.status(200).end();
-      }
-    });
-});
-
-//post request
-
-app.post("/api", (req, res) => {
-  const data = req.body;
-  console.log(data);
-  if (data.lead_item) {
-    db.insert(data, (err, insertedData) => {
-      res.status(201).json(insertedData);
-    });
-  } else {
-    res.status(400).json({ error: "Bad Request - No Match Found" });
-  }
-});
-
-//search request
-app.get("/api/search", (req, res) => {
-  db.find(req.query, (err, data) => {
-    if (data.length > 0) {
-      res.json(data);
-    } else {
-      res.status(400);
-      res.json({
-        error: "Bad request",
-      });
-    }
-  });
-});
-
-// put request
-
-/*
-app.put("/api/:id", (req, res) => {
-  const id = req.params.id;
-  const data = req.body;
-  db.update({ _id: id }, data, {}, (err, numReplaced) => {
-    if (err) {
-      res.status(400).json({ error: "Bad Request" });
-    } else {
-      res.json(data);
-    }
-  });
-});
-*/
-
-app.put("/api/:id", (req, res) => {
-  let options = {
-    upsert: true,
-    returnUpdatedDocs: true,
-  };
-  let data = req.body;
-  let ID = req.params.ID;
-  data._id = ID;
-  if (Object.keys(data).includes("lead_item")) {
-    db.update(
-      { _id: ID },
-      data,
-      options,
-      (err, numAffected, affectedDocument, upsert) => {
-        if (upsert) {
-          res.status(201).json(affectedDocument);
+app.get('/api', (req, resp) => {
+    let data = db.find({}, (err, doc) => {
+        if(err) {
+            console.log("ERROR")
         } else {
-          res.status(200).json(affectedDocument);
+            console.log(doc)
+            resp.json(doc);
         }
-      }
-    );
-  } else {
-    res.status(400).json({ error: "Bad Request - something went wrong" });
-  }
-});
+    })
+})
 
-// delete request
-app.delete("/api/:id", function (req, res) {
-  db.remove({ _id: req.params.id }, function (err, num) {
-    if (err) {
-      res.json(500, { error: err });
-      return;
+//get request / seatch
+
+app.get('/api/search', (req, resp) => {
+    db.find(req.query, (err, doc) => {
+        if(err || doc.length == 0) {
+            resp.status(400).json({ error: 'haha didnt work'});
+        } else {
+            console.log(doc)
+            resp.json(doc);
+        }
+    })
+})
+
+//post request 
+
+app.post('/api', function (req, res) {  
+    let keys = Object.keys(req.body)
+
+    if(keys.includes("name")){
+        db.insert(req.body, (err, newDoc) => {
+            res.status(201).json(newDoc);
+        })
+    } else {
+        res.status(400).json({ error: 'Post error /api - Bad Request'});
     }
+})
 
-    if (num === 0) {
-      res.json(404, { error: { message: "no id found: " + req.params.id } });
-      return;
-    }
+//put request
 
-    res.send(204);
-  });
-});
+app.put('/api/:id', (req, res) => {
+    let id = req.params.id;
+    let data = req.body;
+    let keys = Object.keys(req.body)
+    if(keys.includes("name")){
+        data._id = id;
+    db.update({_id: id}, data, {upsert:true, returnUpdatedDocs:true}, (err, num, doc, upsert) => {
+        if(upsert) {
+            res.status(201)
+        } else {
+            res.status(200)
+        }
+        res.json(doc)
+        })} else {
+            res.status(400).json({ error: 'error in app.put /api/id (bad request)'})
+        }
+})
 
-//TO DO:
+//delete request 
 
-//BROKEN STUFF
+app.delete('/api/:id', (req, resp) => {
+    let id = req.params.id;
+        db.remove({_id: id}, {}, (err, num) => {
+            if(num) {
+                resp.status(204);
+                resp.end();
+            } else {
+                resp.status(404).json({ error: 'error with delete request (ID not found)'});
+            }
+        })
+})
+    //res.json(response);
+    //res.end();
 
-app.post("/api", (req, res) => {
-  console.log(req.body);
-  const data = req.body;
-  console.log(data.contents);
-  db.insert(data);
-  res.send({
-    status: "success",
-    contents: data.contents,
-  });
-});
+    //rewrite pulling from api here
 
-app.post("/api", (req, res) => {
-  const data = req.body;
-  console.log(data.first);
-  db.remove({ contents: data.first }, {}, function (err, numRemoved) {
-    console.log(numRemoved);
-  });
-  res.json({
-    status: "success",
-  });
-});
-
-//rewrite pulling from api here
-
-const fetch = require("cross-fetch");
+    const fetch = require("cross-fetch");
 
 async function loadData() {
-  let url = "https://api.opencovid.ca/";
+  let url = "https://api.opencovid.ca/"; // maybe fix this later
   let obj = await (await fetch(url)).json();
   console.log(obj);
 }
 
 loadData();
+//res.status(200);
 
 //Do not remove this line. This allows the test suite to start
 //multiple instances of your server on different ports
